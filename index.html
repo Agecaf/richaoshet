@@ -1,0 +1,39 @@
+<!doctype=html>
+<html>
+<head>
+  <title>Richaoshet</title>
+  <meta charset="utf-8">
+  <script language="JavaScript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/7.0.2/math.min.js"></script>
+  <script language="JavaScript" src="https://cdnjs.cloudflare.com/ajax/libs/tone/13.8.25/Tone.js"></script>
+
+
+</head>
+<body>
+  <h1 id="title">Level 1</h1>
+  <canvas
+    id="game"
+    width="800"
+    height="600"
+    style="
+      display: block;
+      margin-left: auto;
+      margin-right: auto"></canvas>
+
+
+  <p>Score: <span id="score">0</span> </p>
+  <p>High Score: <span id="high-score"> 0 </span> (Not saved after refreshes!) </p>
+
+  <h2>How to play</h2>
+  <p>Use W, A, S, D together with Q, E to control the spaceship. Press Space to shoot.</p>
+  <p>By default there's some nice automatic drag, but if you get hit by asteroids,
+    or your own bullets, you'll have to control the spaceship manually. If the spaceship goes too
+    fast, it'll be destroyed! So be sure to not lose control. Press O to restart. </p>
+
+
+    <script src="geometry.js"></script>
+    <script src="particle.js"></script>
+    <script src="controls.js"></script>
+    <script src="music.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>
