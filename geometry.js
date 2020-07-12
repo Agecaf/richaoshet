@@ -22,7 +22,7 @@ const TAU = Math.PI * 2;
 
 // Point where a matrix sends [1, 0, 0]
 function pt(A) {
-  return math.transpose(math.row(A,0));
+  return A.ptCache || (A.ptCache = math.transpose(math.row(A,0)));
 }
 
 // Standard vector / matrix operations.

@@ -44,6 +44,9 @@ let stars = [];
 // Particles
 let particles = [];
 let playerParticles = [];
+let tails = [];
+let badtails = [];
+let tailTimer = 0;
 
 // Get Context.
 const canvas = document.getElementById('game');
@@ -51,13 +54,15 @@ const ctx = canvas.getContext("2d");
 
 // Palette
 let palette = {
-  player : '#113',
+  player : 'hsl(0, 100%, 50%)',// '#113',
   playerStroke : '#bbf',
   particlePlayer : '#224',
   bullet : '#eef',
   badbullet : '#fff',
-  asteroid : '#b42',
-  particle : '#421',
+  tail : '#112',
+  asteroid : () => { return randomizeColor('#b42');},
+  asteroidStroke : '#931',
+  particle : '#931',
   cooldown : '#446',
   circle : '#001',
   background : '#112',
@@ -103,6 +108,30 @@ let highscore = 0;
 let scoreP = document.getElementById('score');
 let highscoreP = document.getElementById('high-score');
 
+// Pause
+let paused = false;
+
+// Settings
+let disableTails = false;
+let disableParticles = false;
+
+//
+// Helper Functions
+//
+
+function randomizeColor(str){
+  return `#${str[1]}${randomHex()}${str[2]}${randomHex()}${str[3]}${randomHex()}`
+}
+
+function randomHex() {
+  switch (Math.floor(Math.random() * 4)) {
+    case 0: return '0';
+    case 1: return '3';
+    case 2: return 'c';
+    case 3: return 'f';
+  }
+}
+
 ///
 /// Startup
 ///
@@ -112,6 +141,7 @@ function setup() {
   level = 0;
   gameOver = false;
   score = 0;
+  scoreP.innerHTML = score;
 
   music.nextLevel(level);
 
@@ -129,12 +159,15 @@ function startLevel() {
   victoryTimer = 2.5;
   victory = false;
 
+  // Palette
+  levelPalette();
+
   // Player
   player = math.identity(3);
   playerVel = identity;
 
   cooldown = 0;
-  invincibility = 0;
+  invincibility = 2;
   control = 1;
 
   drag = levelDrag(level);
@@ -170,6 +203,7 @@ function startLevel() {
       mt(sideways(Math.random() * TAU), forwards( Math.random() * TAU ))))
   }
 
+
 }
 
 
@@ -185,9 +219,27 @@ let gameloop = (timestamp) => {
 
   // Calculate change of time (milliseconds).
   const dt = (timestamp - last) / 1000;
-  if (dt > 1.0) return;
+
+  // Check returning from another page.
+  if (dt > 1.0) {
+    //
+    draw();
+
+    // Prepare for next, end the round
+    last = timestamp;
+    window.requestAnimationFrame(mainloop);
+    return;
+  }
 
   t += dt;
+
+  // Pause
+  if(controls.checkOnce(controls.allKeys[8])) {
+    mainloop = pauseloop;
+    window.requestAnimationFrame(mainloop);
+    Tone.Transport.pause();
+    return;
+  }
 
   // Update Player
 
@@ -254,8 +306,12 @@ let gameloop = (timestamp) => {
       highscore = highscore > score ? highscore: score;
       highscoreP.innerHTML = highscore;
     }
-  }
+  } // End if !gameover
 
+
+
+
+  // Things to do in case of a game over.
   if (gameOver) {
     // Keep moving player
     playerVel = normalize(iplt(0.99, playerVel, identity));
@@ -305,6 +361,39 @@ let gameloop = (timestamp) => {
     }
   });
 
+  // Tails
+  tails.forEach((tt, idx) => {
+    tt.t += dt;
+    tt.size *= 0.85;
+    if(tt.t > 0.2) {
+      tails.splice(idx, 1);
+    }
+  });
+  badtails.forEach((tt, idx) => {
+    tt.t += dt;
+    tt.size *= 0.9;
+    if(tt.t > 0.2) {
+      badtails.splice(idx, 1);
+    }
+  });
+
+
+  // Add tails
+  if(!disableTails) {
+    tailTimer -= dt;
+    if (tailTimer <= 0) {
+      tailTimer = 0.008;
+      bullets.forEach((bt, idx) => {
+        tails.push(new TailParticle(bt.pos));
+      });
+
+      badbullets.forEach((bt, idx) => {
+        badtails.push(new TailParticle(bt.pos));
+      });
+    }
+  }
+
+
   // Particles
   particles.forEach((bt, idx) => {
     bt.pos = mt(bt.pos, bt.vel);
@@ -348,7 +437,7 @@ let gameloop = (timestamp) => {
     music.nextLevel(level);
   }
   if (asteroids.length == 0) { victory = true; }
-  if (controls.checkOnce('o')) {
+  if (controls.checkOnce(controls.allKeys[7])) {
     setup();
     return;
   }
@@ -357,7 +446,12 @@ let gameloop = (timestamp) => {
   // Prepare for next loop
   last = timestamp;
   window.requestAnimationFrame(mainloop);
-}
+
+} // End of gameloop
+
+
+
+
 
 
 
@@ -372,17 +466,17 @@ function checkCollisions() {
 
   // Check collisions
   asteroids.forEach((at, idxA) => {
-    if (at.t > 1) {
+    if (at.t > 0.1) {
       const target = 1 - at.size * at.size * 0.55;
 
       // Collisions with first gen bullets
       bullets.forEach((bt, idxB) => {
-        if (bt.t > 0.1){
+        if (bt.t > 0.03){
           if(math.abs(dot(pt(at.pos), pt(bt.pos))) > target) {
             // Collision!
             asteroids.splice(idxA, 1);
             bullets.splice(idxB, 1);
-            score += 10 * level;
+            score += 10 * (level + 1);
             scoreP.innerHTML = score;
 
 
@@ -394,27 +488,29 @@ function checkCollisions() {
       });
 
       // Collisions with second gen bullets.
-      badbullets.forEach((bt, idxB) => {
-        if (bt.t > 2){
-          if(math.abs(dot(pt(at.pos), pt(bt.pos))) > target) {
+      if (at.t > 2) {
+        badbullets.forEach((bt, idxB) => {
+          if (bt.t > 0.03){
+            if(math.abs(dot(pt(at.pos), pt(bt.pos))) > target) {
 
-            // Collision!
-            asteroids.splice(idxA, 1);
-            badbullets.splice(idxB, 1);
-            score += 30 * level;
-            scoreP.innerHTML = score;
-
-
-            // New asteroids
-            splitAsteroid(at);
+              // Collision!
+              asteroids.splice(idxA, 1);
+              badbullets.splice(idxB, 1);
+              score += 30 * (level + 1);
+              scoreP.innerHTML = score;
 
 
+              // New asteroids
+              splitAsteroid(at);
+
+
+            }
           }
-        }
-      })
+        })
+      } // End of collisions with second gen bullets
 
       // Collisions with player
-      if(invincibility <= 0 &&
+      if(invincibility <= 0 && at.t > 0.5 &&
         math.abs(dot(pt(at.pos), pt(inv(player)))) > target) {
         // Collision!
         playerHit();
@@ -459,22 +555,28 @@ function checkCollisions() {
     })
   }
 
-}
+}// End of Check COllision
 
 
 
 // When the asteroid collides with bullets, or the player.
 function splitAsteroid(at) {
+  let funcToUse = (a,b) => b;
+  switch (Math.floor(Math.random() * 3)) {
+    case 0: funcToUse = rot; break;
+    case 1: funcToUse = sideways; break;
+    case 2: funcToUse = forwards; break;
+  }
   if(at.size > minAsteroidSize) {
     asteroids.push(
       new Asteroid(
         at.pos,
-        conj(mt(rot(1), inv(at.pos)), forwards(0.002 + 0.007 * Math.random())),
+        conj(mt(funcToUse(1), inv(at.pos)), forwards(0.002 + 0.007 * Math.random())),
         at.size * 0.75
       ),
       new Asteroid(
         at.pos,
-        conj(mt(rot(-1), inv(at.pos)), forwards(0.002 + 0.007 * Math.random())),
+        conj(mt(funcToUse(-1), inv(at.pos)), forwards(0.002 + 0.007 * Math.random())),
         at.size * 0.75
       )
     )
@@ -490,14 +592,20 @@ function splitAsteroid(at) {
 
 // When a first gen bullet hits something.
 function splitBullet(bt) {
+  let funcToUse = (a,b) => b;
+  switch (Math.floor(Math.random() * 3)) {
+    case 0: funcToUse = rot; break;
+    case 1: funcToUse = sideways; break;
+    case 2: funcToUse = forwards; break;
+  }
   badbullets.push(
     new Bullet(
       bt.pos,
-      conj(mt(rot(1), inv(bt.pos)), forwards(-0.01))
+      conj(mt(funcToUse(1), inv(bt.pos)), forwards(-0.01))
     ),
     new Bullet(
       bt.pos,
-      conj(mt(rot(-1), inv(bt.pos)), forwards(-0.01))
+      conj(mt(funcToUse(-1), inv(bt.pos)), forwards(-0.01))
     )
   )
 }
@@ -562,31 +670,37 @@ function draw() {
 
 
   // particles
-  particles.forEach((at) => {
+  if (!disableParticles) {
+    particles.forEach((at) => {
 
-    // Get the relative position
-    at.camera = player;
+      // Get the relative position
+      at.camera = player;
 
-    ctx.fillStyle = palette.particle;
-    ctx.beginPath();
-    ctx.ellipse( at.x, at.y, at.size,
-    at.size * at.z, at.r + TAU/4 , 0, TAU);
-    ctx.fill();
+      ctx.fillStyle = palette.particle;
+      ctx.beginPath();
+      ctx.ellipse( at.x, at.y, at.size,
+        at.size * at.z, at.r + TAU/4 , 0, TAU);
+        ctx.fill();
 
-  })
+    })    
 
-  playerParticles.forEach((at) => {
+    playerParticles.forEach((at) => {
 
-    // Get the relative position
-    at.camera = player;
+      // Get the relative position
+      at.camera = player;
 
-    ctx.fillStyle = palette.particlePlayer;
-    ctx.beginPath();
-    ctx.ellipse( at.x, at.y, at.size,
-    at.size * at.z, at.r + TAU/4 , 0, TAU);
-    ctx.fill();
+      ctx.fillStyle = palette.particlePlayer;
+      ctx.beginPath();
+      ctx.ellipse( at.x, at.y, at.size,
+        at.size * at.z, at.r + TAU/4 , 0, TAU);
+        ctx.fill();
 
-  })
+    })
+  }
+
+
+
+
 
   // Asteroids
   asteroids.forEach((at) => {
@@ -594,13 +708,37 @@ function draw() {
     // Get the relative position
     at.camera = player;
 
-    ctx.fillStyle = palette.asteroid;
+    ctx.fillStyle = at.col;
+    ctx.strokeStyle = palette.asteroidStroke;
+    ctx.lineWidth = 0.012;
     ctx.beginPath();
     ctx.ellipse( at.x, at.y, at.size,
     at.size * at.z, at.r + TAU/4 , 0, TAU);
     ctx.fill();
+    ctx.stroke();
 
   })
+
+  // Tails
+  tails.forEach((st, idx) => {
+    st.camera = player;
+
+    ctx.fillStyle = palette.tail;
+    ctx.beginPath();
+    ctx.ellipse( st.x, st.y, st.size,
+    st.size * st.z, st.r + TAU/4 , 0, TAU);
+    ctx.fill();
+  });
+
+  badtails.forEach((st, idx) => {
+    st.camera = player;
+
+    ctx.fillStyle = palette.tail;
+    ctx.beginPath();
+    ctx.ellipse( st.x, st.y, st.size,
+    st.size * st.z, st.r + TAU/4 , 0, TAU);
+    ctx.fill();
+  });
 
 
   // Bullets
@@ -645,17 +783,86 @@ function draw() {
     ctx.fill();
     ctx.stroke();
   }
+} // End of Draw
 
 
+//
+// Palette
+//
 
+function levelPalette() {
+  /*
+  palette = {
+    player : 'hsl(0, 100%, 50%)',// '#113',
+    playerStroke : '#bbf',
+    particlePlayer : '#224',
+    bullet : '#eef',
+    badbullet : '#fff',
+    asteroid : () => { return randomizeColor('#b42');},
+    asteroidStroke : '#931',
+    particle : '#931',
+    cooldown : '#446',
+    circle : '#001',
+    background : '#112',
+    stars : '#555',
+  }
+  */
 
+  const hueA = (level * 50) % 360;
+  const hueB = (120 + level * 50) % 360;
+
+  palette.background = `hsl(${hueA}, 80%, 20%)`
+  palette.circle = `hsl(${hueA}, 100%, 10%)`
+  palette.tail = `hsla(${hueA}, 80%, 80%, 0.2)`
+  palette.stars = `hsl(${hueA}, 60%, 40%)`
+  palette.player = `hsl(${hueA}, 100%, 30%)`
+  palette.playerStroke = `hsl(${hueA}, 70%, 80%)`
+  palette.particlePlayer = `hsl(${hueA}, 70%, 30%)`
+  palette.bullet = `#fff`
+  palette.badbullet = `hsl(${hueB}, 100%, 90%)`
+  palette.cooldown = `hsl(${hueA}, 100%, 40%)`
+  palette.asteroid = () => {
+    return `hsl(${hueB},${70 + Math.floor(Math.random()*25)}%,${30+Math.floor(Math.random()*20)}%)`
+  }
+  palette.asteroidStroke = `hsl(${hueB}, 100%, 20%)`
+  palette.particle = `hsl(${hueB}, 60%, 40%)`
 
 }
 
 
 ///
-/// Begin the game
+/// Paused Loop
 ///
 
-mainloop = gameloop;
-setup();
+function pauseloop(timestamp) {
+  if(controls.checkOnce(controls.allKeys[8])) {
+    mainloop = gameloop;
+    window.requestAnimationFrame(mainloop);
+    Tone.Transport.start();
+    return;
+  }
+  if (controls.checkOnce(controls.allKeys[7])) {
+
+      mainloop = gameloop;
+      Tone.Transport.start();
+      setup();
+      return;
+      return;
+  }
+  window.requestAnimationFrame(mainloop);
+}
+
+///
+/// Begin the game
+///
+levelPalette();
+draw();
+
+function setupOnce(ev) {
+
+  mainloop = gameloop;
+  setup();
+  window.removeEventListener('keydown', setupOnce, false);
+}
+
+window.addEventListener('keydown', setupOnce, false);

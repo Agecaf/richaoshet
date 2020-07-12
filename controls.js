@@ -15,15 +15,26 @@ Edited to add a couple of extra controls.
   const controls = [];
   const checked = [];
 
-  const allKeys = ["w", "a", "s", "d", "q", "e", " "];
+  // Player controls
+  controls.allKeys = [
+    "w", // 0 Move up
+    "a", // 1 Move left
+    "s", // 2 Move down
+    "d", // 3 Move right
+    "q", // 4 Turn anticlockwise
+    "e", // 5 Turn clockwise
+    " ", // 6 Shoot
+    "o", // 7 Restart the Game
+    "p"  // 8 Pause the Game
+  ];
 
-  controls.up = () => controls.includes("w");
-  controls.down = () => controls.includes("s");
-  controls.left = () => controls.includes("a");
-  controls.right = () => controls.includes("d");
-  controls.clockwise = () => controls.includes("e");
-  controls.anticlockwise = () => controls.includes("q");
-  controls.space = () => controls.includes(" ");
+  controls.up = () => controls.includes(controls.allKeys[0]);
+  controls.down = () => controls.includes(controls.allKeys[2]);
+  controls.left = () => controls.includes(controls.allKeys[1]);
+  controls.right = () => controls.includes(controls.allKeys[3]);
+  controls.clockwise = () => controls.includes(controls.allKeys[5]);
+  controls.anticlockwise = () => controls.includes(controls.allKeys[4]);
+  controls.space = () => controls.includes(controls.allKeys[6]);
 
   // arrowleft, arrowdown, arrowup, arrowright
 
@@ -33,7 +44,7 @@ Edited to add a couple of extra controls.
       controls.push(keyName);
     }
 
-    if (allKeys.indexOf(keyName) != -1) {
+    if (controls.allKeys.indexOf(keyName) != -1) {
       event.preventDefault();
     }
 

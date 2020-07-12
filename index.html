@@ -29,6 +29,57 @@
     or your own bullets, you'll have to control the spaceship manually. If the spaceship goes too
     fast, it'll be destroyed! So be sure to not lose control. Press O to restart. </p>
 
+  <h2>Settings</h2>
+  <p>Use the following box to change the following settings: The character's controls.
+    Then press the button to evaluate. Is this a lazy answer? Could UI have
+    been made for this? Yes! But this is better than nothing, and easy
+    to implement.</p>
+    <textarea id="settings-box" rows="8" cols="80">///
+/// Controls
+///
+
+controls.allKeys = [
+/* Spaceship controls: Change the letter in "x" */
+  "w", // Move up
+  "a", // Move left
+  "s", // Move down
+  "d", // Move right
+  "q", // Turn anticlockwise
+  "e", // Turn clockwise
+  " ", // Shoot
+
+/* Other Controls */
+  "o", // Restart the Game
+  "p"  // Pause the Game
+];
+// Other keycode examples: "j", "arrowleft", "shift"
+
+///
+/// Sound
+///
+
+/* Volume */
+/* To execute, remove the // from the next line. The number is the change in volume in decibels; 0 is no change, + 6 is louder, -6 is quieter. */
+// Tone.Master.volume.value = -6;
+
+/* Mute (remove the // from the next line) */
+// Tone.Master.mute = true;
+
+/* Unmute (remove the // from the next line)*/
+// Tone.Master.mute = false;
+
+///
+/// Visual
+///
+
+/* Disable Tails (remove the // from the next line) */
+// disableTails = true;
+
+/* Disable Particles (remove the // from the next line) */
+// disableParticles = true;
+  </textarea>
+    <button type="button" onclick="eval(document.getElementById('settings-box').value)">Change Settings! (Eval)</button>
+
 
     <script src="geometry.js"></script>
     <script src="particle.js"></script>
